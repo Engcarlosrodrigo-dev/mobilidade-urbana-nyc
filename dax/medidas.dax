@@ -1,0 +1,370 @@
+// ============================================================
+// PROJETO: O Pulso da Mobilidade Urbana em Nova York
+// Arquivo: medidas.dax
+// Descrição: Todas as medidas DAX utilizadas nos dashboards
+// Dashboards: Visão Geral | Análise Temporal | 
+//             Perfil dos Usuários | Análise Geográfica
+// ============================================================
+
+
+// ============================================================
+// 1. KPIs PRINCIPAIS — Visão Geral
+// ============================================================
+
+Total de Corridas = 
+COUNTROWS(fato_corridas)
+
+// Resultado: 19.817.561
+
+// ------------------------------------------------------------
+
+Receita Total = 
+SUM(fato_corridas[total_amount])
+
+// Resultado: $414.240.000 (414,24 Mi)
+
+// ------------------------------------------------------------
+
+Distancia Media KM = 
+AVERAGE(fato_corridas[trip_distance])
+
+// Resultado: 5,95 KM
+
+// ------------------------------------------------------------
+
+Duracao Media Minutos = 
+AVERAGEX(
+    fato_corridas,
+    DATEDIFF(
+        fato_corridas[tpep_pickup_datetime],
+        fato_corridas[tpep_dropoff_datetime],
+        MINUTE
+    )
+)
+
+// Resultado: 89,19 min
+
+// ------------------------------------------------------------
+
+Ticket Medio = 
+DIVIDE(
+    [Receita Total],
+    [Total de Corridas]
+)
+
+// Resultado: $20,90
+
+// ------------------------------------------------------------
+
+Percentual Gorjetas = 
+DIVIDE(
+    COUNTROWS(
+        FILTER(fato_corridas, fato_corridas[tip_amount] > 0)
+    ),
+    [Total de Corridas]
+)
+
+// Resultado: 76,28%
+
+
+// ============================================================
+// 2. ANÁLISE TEMPORAL — Corridas e Receita por Mês
+// ============================================================
+
+Total Corridas por Mes = 
+CALCULATE(
+    [Total de Corridas],
+    ALLEXCEPT(dim_calendario, dim_calendario[mes])
+)
+
+// Valores por mês:
+// Janeiro:  2.463.900
+// Fevereiro: 2.979.419
+// Março:    3.627.888
+// Abril:    3.599.902
+// Maio:     3.588.292
+// Junho:    3.557.634
+
+// ------------------------------------------------------------
+
+Receita por Mes = 
+CALCULATE(
+    [Receita Total],
+    ALLEXCEPT(dim_calendario, dim_calendario[mes])
+)
+
+// Valores por mês:
+// Janeiro:  $47 Mi
+// Fevereiro: $58 Mi
+// Março:    $75 Mi
+// Abril:    $76 Mi
+// Maio:     $79 Mi
+// Junho:    $79 Mi
+
+// ------------------------------------------------------------
+
+Ticket Medio por Mes = 
+CALCULATE(
+    [Ticket Medio],
+    ALLEXCEPT(dim_calendario, dim_calendario[mes])
+)
+
+// Valores por mês:
+// Janeiro:  19,17
+// Fevereiro: 19,50
+// Março:    20,59
+// Abril:    21,19
+// Maio:     22,08
+// Junho:    22,12
+
+
+// ============================================================
+// 3. ANÁLISE TEMPORAL — Por Dia da Semana e Horário
+// ============================================================
+
+Total Corridas por Dia Semana = 
+CALCULATE(
+    [Total de Corridas],
+    ALLEXCEPT(dim_calendario, dim_calendario[dia_semana])
+)
+
+// Valores por dia:
+// Quinta-feira: 3.090.890
+// Quarta-feira: 2.986.832
+// Sexta-feira:  2.976.928
+// Sábado:       2.901.690
+// Terça-feira:  2.878.244
+// Segunda-feira: 2.547.613
+// Domingo:      2.434.838
+
+// ------------------------------------------------------------
+
+Dia Mais Movimentado = 
+CALCULATE(
+    FIRSTNONBLANK(dim_calendario[dia_semana], 1),
+    TOPN(
+        1,
+        VALUES(dim_calendario[dia_semana]),
+        [Total de Corridas],
+        DESC
+    )
+)
+
+// Resultado: quinta-feira
+
+// ------------------------------------------------------------
+
+Duracao Media por Dia Semana = 
+CALCULATE(
+    [Duracao Media Minutos],
+    ALLEXCEPT(dim_calendario, dim_calendario[dia_semana])
+)
+
+// Valores por dia:
+// Quinta-feira:  17,5 min
+// Sexta-feira:   17,3 min
+// Quarta-feira:  17,2 min
+// Terça-feira:   16,9 min
+// Segunda-feira: 16,2 min
+// Domingo:       16,1 min
+// Sábado:        16,1 min
+
+// ------------------------------------------------------------
+
+Hora Formatada = 
+FORMAT(fato_corridas[tpep_pickup_datetime], "HH:00")
+
+// ------------------------------------------------------------
+
+Duracao Media por Horario = 
+CALCULATE(
+    [Duracao Media Minutos],
+    ALLEXCEPT(fato_corridas, fato_corridas[hora_pickup])
+)
+
+// Picos identificados:
+// 15:00 → 19,9 min
+// 16:00 → 19,8 min
+// 14:00 → 19,1 min
+// 17:00 → 18,0 min
+// Menor duração: 03:00 → 14,9 min
+
+
+// ============================================================
+// 4. PERFIL DOS USUÁRIOS
+// ============================================================
+
+Media Passageiros por Corrida = 
+AVERAGE(fato_corridas[passenger_count])
+
+// Resultado: 1
+
+// ------------------------------------------------------------
+
+Valor Medio Gorjeta = 
+AVERAGEX(
+    FILTER(fato_corridas, fato_corridas[tip_amount] > 0),
+    fato_corridas[tip_amount]
+)
+
+// Resultado: $2,69
+
+// ------------------------------------------------------------
+
+Percentual Cartao Credito = 
+DIVIDE(
+    COUNTROWS(FILTER(fato_corridas, fato_corridas[payment_type] = 1)),
+    [Total de Corridas]
+)
+
+// Resultado: 79,62%
+
+// ------------------------------------------------------------
+
+Percentual Dinheiro = 
+DIVIDE(
+    COUNTROWS(FILTER(fato_corridas, fato_corridas[payment_type] = 2)),
+    [Total de Corridas]
+)
+
+// Resultado: 20,38%
+
+// ------------------------------------------------------------
+
+Corridas por Horario = 
+CALCULATE(
+    [Total de Corridas],
+    ALLEXCEPT(fato_corridas, fato_corridas[hora_pickup])
+)
+
+// Pico: 16:00 → 1,43 Mi | 17:00 → 1,26 Mi
+
+// ------------------------------------------------------------
+
+Receita por Horario = 
+CALCULATE(
+    [Receita Total],
+    ALLEXCEPT(fato_corridas, fato_corridas[hora_pickup])
+)
+
+// Pico de receita: 15:00–19:00 (acima de $26 Mi)
+// Maior: 18:00 → $29,06 Mi | 17:00 → $28,02 Mi
+
+// ------------------------------------------------------------
+
+Gorjeta Media por Horario = 
+CALCULATE(
+    [Valor Medio Gorjeta],
+    ALLEXCEPT(fato_corridas, fato_corridas[hora_pickup])
+)
+
+// Melhor gorjeta:
+// 05:00 → $3,48
+// 04:00 → $3,12
+// 00:00 → $2,82
+
+
+// ============================================================
+// 5. ANÁLISE GEOGRÁFICA
+// ============================================================
+
+Total Corridas por Regiao = 
+CALCULATE(
+    [Total de Corridas],
+    ALLEXCEPT(dim_zona, dim_zona[Borough])
+)
+
+// Valores por região:
+// EWR (Newark):  3,8 Mi
+// Brooklyn:      3,8 Mi
+// Manhattan:     3,2 Mi
+// Staten Island: 2,8 Mi
+// Bronx:         2,4 Mi
+// Queens:        1,7 Mi
+
+// ------------------------------------------------------------
+
+Custo Total Pedagios = 
+SUM(fato_corridas[tolls_amount])
+
+// Resultado: $1.496.235,25
+
+// ------------------------------------------------------------
+
+Valor Medio Pedagio = 
+DIVIDE(
+    [Custo Total Pedagios],
+    COUNTROWS(
+        FILTER(fato_corridas, fato_corridas[tolls_amount] > 0)
+    )
+)
+
+// Resultado: $0,50
+
+// ------------------------------------------------------------
+
+Duracao Media por Regiao = 
+CALCULATE(
+    [Duracao Media Minutos],
+    ALLEXCEPT(dim_zona, dim_zona[Borough])
+)
+
+// Valores por região:
+// EWR:           21,43 min
+// Staten Island: 17,87 min
+// Bronx:         15,50 min
+// Queens:        15,33 min
+// Brooklyn:      14,95 min
+// Manhattan:     14,79 min
+
+// ------------------------------------------------------------
+
+Pedagio por Regiao = 
+CALCULATE(
+    [Custo Total Pedagios],
+    ALLEXCEPT(dim_zona, dim_zona[Borough])
+)
+
+// Valores aproximados:
+// EWR:           $3.649.584,42
+// Staten Island: $2.921.688,27
+// Manhattan:     $920.000+
+// Brooklyn:      $590.492+
+// Bronx:         $488.422,97
+
+
+// ============================================================
+// 6. MEDIDAS AUXILIARES — Navegação e Formatação
+// ============================================================
+
+Receita Total Formatada = 
+"$" & FORMAT([Receita Total] / 1000000, "0.00") & " Mi"
+
+// ------------------------------------------------------------
+
+Total Corridas Formatado = 
+FORMAT([Total de Corridas], "#,##0")
+
+// ------------------------------------------------------------
+
+Variacao Corridas MoM = 
+VAR MesAtual = [Total de Corridas]
+VAR MesAnterior = 
+    CALCULATE(
+        [Total de Corridas],
+        DATEADD(dim_calendario[data], -1, MONTH)
+    )
+RETURN
+    DIVIDE(MesAtual - MesAnterior, MesAnterior)
+
+// ------------------------------------------------------------
+
+Variacao Receita MoM = 
+VAR ReceitaAtual = [Receita Total]
+VAR ReceitaAnterior = 
+    CALCULATE(
+        [Receita Total],
+        DATEADD(dim_calendario[data], -1, MONTH)
+    )
+RETURN
+    DIVIDE(ReceitaAtual - ReceitaAnterior, ReceitaAnterior)
